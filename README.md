@@ -1,5 +1,5 @@
 # Operating Systems: Final Project
-Client-Server, Multithreading, Strategy/Factory patterns
+Graph Algorithms, Client-Server, and Multithreading
 
 Names: Yocheved Ofstein,  Lior Telman
 
@@ -8,8 +8,6 @@ Names: Yocheved Ofstein,  Lior Telman
 ## The submission includes:
    - Folders: 
    - This README.md file
-
-# OS Project – Graph Algorithms, Client-Server, and Multithreading
 
 This repository is organized in parts (part_1 .. part_10), aligned with the assignment stages.
 
