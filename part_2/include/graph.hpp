@@ -9,12 +9,17 @@
 
 class Graph {
 public:
-    // Adds node if it does not exist
+    // Adds node if it does not exist (idempotent)
     void addNode(int id);
-    // Adds directed edge u->v with weight w (use w=1 for unweighted)
-    void addEdge(int u, int v, int w = 1);
 
-    // BFS visit order from src
+    // Adds directed edge u->v with weight w.
+    // Returns false if either u or v does not exist; true on success.
+    bool addEdge(int u, int v, int w = 1);
+
+    // Check existence
+    bool hasNode(int id) const;
+
+    // BFS visit order from src (empty if src does not exist)
     std::vector<int> bfs(int src) const;
 
     // Dijkstra distances from src (size up to maxNode), INF for unreachable
