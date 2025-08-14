@@ -22,6 +22,7 @@ This repository is organized in parts (part_1 .. part_10), aligned with the assi
 - [ ] part_8 — Multithreading: Leader-Follower
 - [ ] part_9 — Pipeline: Active Objects
 - [ ] part_10 — Helgrind/Callgrind + final reports
+- [ ] part_11 — Final integration / Reports / Extra checks
 
 ## Build
 From the repository root:
