@@ -100,9 +100,3 @@ void Graph::to_stream(std::ostream& out) const {
         out << '\n';
     }
 }
-
-// Validate vertex
-void Graph::validate_vertex(int u) const {
-    if (u < 0 || static_cast<size_t>(u) >= _n)
-        throw std::out_of_range("Invalid vertex: " + std::to_string(u));
-}
