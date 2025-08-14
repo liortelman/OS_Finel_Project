@@ -1,6 +1,8 @@
-// server.cpp
-// Simple TCP server: accepts text commands line-by-line and responds.
-// Build: make server ; Run: ./bin/server 5000
+// part_2/server/server.cpp
+// Simple TCP server: accepts line-based commands and responds.
+// Build: make server
+// Run:   ../bin/server 5000
+
 #include <iostream>
 #include <thread>
 #include <string>
@@ -8,6 +10,7 @@
 #include <mutex>
 #include <vector>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include "graph.hpp"
 
@@ -18,9 +21,19 @@ static void trim_newlines(std::string& s) {
     while (!s.empty() && (s.back()=='\n' || s.back()=='\r')) s.pop_back();
 }
 
+static void print_unknown(FILE* fp) {
+    // Return a helpful message for unknown commands
+    fprintf(fp,
+        "ERR unknown cmd\n"
+        "Use: ADD_NODE <id> | ADD_EDGE <u> <v> [w] | BFS <src> | SHORTEST_PATH <src> <dst> | QUIT | HELP\n"
+    );
+    fflush(fp);
+}
+
 void handle_client(int client_fd) {
     FILE* fp = fdopen(client_fd, "r+");
     if (!fp) { close(client_fd); return; }
+
     char* line = nullptr; size_t n = 0;
 
     while (true) {
@@ -29,27 +42,45 @@ void handle_client(int client_fd) {
 
         std::string cmd(line);
         trim_newlines(cmd);
+        if (cmd.empty()) { fprintf(fp, "ERR empty\n"); fflush(fp); continue; }
+
         if (cmd == "QUIT") {
             fprintf(fp, "OK Bye\n");
             fflush(fp);
             break;
+        }
+        if (cmd == "HELP") {
+            print_unknown(fp); // same help message
+            continue;
         }
 
         std::istringstream iss(cmd);
         std::string op; iss >> op;
 
         if (op == "ADD_NODE") {
+            // Idempotent: always OK, even if node already exists
             int id;
             if (!(iss >> id)) { fprintf(fp, "ERR bad args\n"); fflush(fp); continue; }
             { std::lock_guard<std::mutex> lk(G_MTX); G.addNode(id); }
             fprintf(fp, "OK\n"); fflush(fp);
 
         } else if (op == "ADD_EDGE") {
-            int u,v,w=1;
+            // Enforce that both endpoints already exist; otherwise ERR.
+            int u, v, w = 1;
             if (!(iss >> u >> v)) { fprintf(fp, "ERR bad args\n"); fflush(fp); continue; }
             if (!(iss >> w)) w = 1;
-            { std::lock_guard<std::mutex> lk(G_MTX); G.addEdge(u,v,w); }
-            fprintf(fp, "OK\n"); fflush(fp);
+
+            bool ok = false;
+            {
+                std::lock_guard<std::mutex> lk(G_MTX);
+                ok = G.addEdge(u, v, w); // returns false if u or v missing
+            }
+            if (!ok) {
+                fprintf(fp, "ERR no such node\n");
+            } else {
+                fprintf(fp, "OK\n");
+            }
+            fflush(fp);
 
         } else if (op == "BFS") {
             int s;
@@ -57,23 +88,23 @@ void handle_client(int client_fd) {
             std::vector<int> order;
             { std::lock_guard<std::mutex> lk(G_MTX); order = G.bfs(s); }
             if (order.empty()) { fprintf(fp, "EMPTY\n"); fflush(fp); continue; }
-            for (size_t i=0;i<order.size();++i)
-                fprintf(fp, "%d%c", order[i], (i+1==order.size()?'\n':' '));
+            for (size_t i = 0; i < order.size(); ++i)
+                fprintf(fp, "%d%c", order[i], (i + 1 == order.size() ? '\n' : ' '));
             fflush(fp);
 
         } else if (op == "SHORTEST_PATH") {
-            int s,d;
+            int s, d;
             if (!(iss >> s >> d)) { fprintf(fp, "ERR bad args\n"); fflush(fp); continue; }
             auto ans = [&](){
                 std::lock_guard<std::mutex> lk(G_MTX);
-                return G.shortestPathUnweighted(s,d);
+                return G.shortestPathUnweighted(s, d);
             }();
-            if (!ans) fprintf(fp, "UNREACHABLE\n");
+            if (!ans) fprintf(fp, "UNREACHABLE\n");  // either missing node or no path
             else fprintf(fp, "%d\n", *ans);
             fflush(fp);
 
         } else {
-            fprintf(fp, "ERR unknown cmd\n"); fflush(fp);
+            print_unknown(fp);
         }
     }
 
@@ -90,7 +121,9 @@ int main(int argc, char** argv) {
 
     int srv = socket(AF_INET, SOCK_STREAM, 0);
     if (srv < 0) { perror("socket"); return 1; }
-    int opt=1; setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    int opt = 1;
+    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
