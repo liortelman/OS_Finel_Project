@@ -41,27 +41,6 @@ void Graph::add_edge(int u, int v, double w) {
     }
 }
 
-// Neighbors
-const std::vector<Edge>& Graph::neighbors(int u) const {
-    validate_vertex(u);
-    return _adj[u];
-}
-
-// Degrees
-int Graph::out_degree(int u) const {
-    validate_vertex(u);
-    return _outdeg[u];
-}
-
-int Graph::in_degree(int u) const {
-    validate_vertex(u);
-    return _indeg[u];
-}
-
-int Graph::degree(int u) const {
-    return directed() ? out_degree(u) : out_degree(u);
-}
-
 // Load from file
 Graph Graph::from_file(const std::string& path) {
     std::ifstream fin(path);
