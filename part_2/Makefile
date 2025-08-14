@@ -1,25 +1,40 @@
-# Part 2 – Euler circuit (uses Graph from part_1)
+# Part 2 – build server/client (standalone) + optional Euler demo
+
 CXX := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
-INCLUDES := -Iinclude -I../part_1/include
+CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic -pthread
+INCLUDES := -Iinclude
 LDFLAGS :=
 
-TARGET := part_2_demo
-SRC := src/euler.cpp main_part2.cpp ../part_1/src/graph.cpp
-OBJ := $(SRC:.cpp=.o)
+# ==== Server/Client (standalone, use Graph from part_2/include & src) ====
+SERVER_SRC := server/server.cpp src/graph.cpp
+CLIENT_SRC := client/client.cpp
 
-all: $(TARGET)
+server: $(SERVER_SRC)
+	@mkdir -p ../bin
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o ../bin/server $(SERVER_SRC) $(LDFLAGS)
 
-$(TARGET): $(OBJ)
-	$(CXX) $(CXXFLAGS) $(OBJ) -o $@ $(LDFLAGS)
+client: $(CLIENT_SRC)
+	@mkdir -p ../bin
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o ../bin/client $(CLIENT_SRC) $(LDFLAGS)
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+run-server: server
+	../bin/server 5000
 
-run: $(TARGET)
-	./$(TARGET)
+run-client: client
+	../bin/client 127.0.0.1 5000
+
+# ==== Optional: Euler demo (depends on euler.hpp; skip if missing) ====
+# If you later add part_2/include/euler.hpp, you can build this:
+EULER_DEMO := part_2_demo
+EULER_SRC  := src/euler.cpp main_part2.cpp
+
+euler_demo: $(EULER_SRC)
+	@mkdir -p .
+	$(CXX) $(CXXFLAGS) -Iinclude -I../part_1/include -o $(EULER_DEMO) $(EULER_SRC) ../part_1/src/graph.cpp
+
+run_euler: euler_demo
+	./$(EULER_DEMO)
 
 clean:
-	rm -f $(OBJ) $(TARGET)
-
-.PHONY: all run clean
+	rm -f ../bin/server ../bin/client $(EULER_DEMO) \
+	      server/*.o client/*.o src/*.o
