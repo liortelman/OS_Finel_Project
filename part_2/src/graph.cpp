@@ -5,19 +5,25 @@
 static const int INF = 1000000000;
 
 void Graph::addNode(int id) {
-    (void)adj[id]; // ensure adjacency entry exists
+    (void)adj[id]; // ensure adjacency entry exists (idempotent)
 }
 
-void Graph::addEdge(int u, int v, int w) {
-    addNode(u); addNode(v);
+bool Graph::hasNode(int id) const {
+    return adj.find(id) != adj.end();
+}
+
+bool Graph::addEdge(int u, int v, int w) {
+    // Do not auto-create nodes. Enforce existence.
+    if (!hasNode(u) || !hasNode(v)) return false;
     adj[u].push_back({v, w});
+    return true;
 }
 
 std::vector<int> Graph::bfs(int src) const {
     std::unordered_map<int, bool> vis;
     std::queue<int> q;
     std::vector<int> order;
-    if (!adj.count(src)) return order;
+    if (!hasNode(src)) return order; // empty if src missing
     q.push(src); vis[src] = true;
     while (!q.empty()) {
         int u = q.front(); q.pop();
@@ -35,7 +41,7 @@ std::vector<int> Graph::bfs(int src) const {
 
 std::vector<int> Graph::dijkstra(int src, int maxNode) const {
     std::vector<int> dist(maxNode + 1, INF);
-    if (!adj.count(src)) return dist;
+    if (!hasNode(src)) return dist;
     using P = std::pair<int,int>; // (dist, node)
     std::priority_queue<P, std::vector<P>, std::greater<P>> pq;
     dist[src] = 0; pq.push({0, src});
@@ -56,7 +62,7 @@ std::vector<int> Graph::dijkstra(int src, int maxNode) const {
 }
 
 std::optional<int> Graph::shortestPathUnweighted(int src, int dst) const {
-    if (!adj.count(src) || !adj.count(dst)) return std::nullopt;
+    if (!hasNode(src) || !hasNode(dst)) return std::nullopt;
     std::unordered_map<int, int> dist;
     std::queue<int> q;
     q.push(src); dist[src] = 0;
