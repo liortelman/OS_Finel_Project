@@ -1,26 +1,36 @@
-# Part 2 – build server/client (standalone) + optional Euler demo
+# Part 2 – build server/client
 
 CXX := g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic -pthread
 INCLUDES := -Iinclude
 
-# ==== Server/Client (standalone, use Graph from part_2/include & src) ====
 SERVER_SRC := server/server.cpp src/graph.cpp
 CLIENT_SRC := client/client.cpp
 
-server: $(SERVER_SRC)
+SERVER_BIN := ../bin/server
+CLIENT_BIN := ../bin/client
+
+.PHONY: all clean run-server run-client server client
+all: $(SERVER_BIN) $(CLIENT_BIN)
+
+# build outputs are the real targets:
+$(SERVER_BIN): $(SERVER_SRC)
 	@mkdir -p ../bin
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o ../bin/server $(SERVER_SRC)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $(SERVER_SRC)
 
-client: $(CLIENT_SRC)
+$(CLIENT_BIN): $(CLIENT_SRC)
 	@mkdir -p ../bin
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o ../bin/client $(CLIENT_SRC)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $(CLIENT_SRC)
 
-run-server: server
-	../bin/server 5000
+# convenience aliases (phony so they won't clash with folders):
+server: $(SERVER_BIN)
+client: $(CLIENT_BIN)
 
-run-client: client
-	../bin/client 127.0.0.1 5000
+run-server: $(SERVER_BIN)
+	$(SERVER_BIN) 5000
+
+run-client: $(CLIENT_BIN)
+	$(CLIENT_BIN) 127.0.0.1 5000
 
 clean:
-	rm -f ../bin/server ../bin/client
+	rm -f $(SERVER_BIN) $(CLIENT_BIN)
