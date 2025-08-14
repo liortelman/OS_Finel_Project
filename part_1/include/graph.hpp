@@ -1,108 +1,77 @@
-#include "graph.hpp"
-#include <fstream>
-#include <sstream>
+#pragma once
 
-using namespace osproj;
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <iostream>
+#include <limits>
 
-// Constructor
-Graph::Graph(size_t n, GraphType t) : _n(n), _type(t),
-    _adj(n), _indeg(n, 0), _outdeg(n, 0) {}
+namespace osproj {
 
-// Resize
-void Graph::resize(size_t n) {
-    _n = n;
-    _adj.resize(n);
-    _indeg.resize(n, 0);
-    _outdeg.resize(n, 0);
-    _edges.clear();
-}
+enum class GraphType { DIRECTED, UNDIRECTED };
 
-// Add vertex
-int Graph::add_vertex() {
-    _adj.emplace_back();
-    _indeg.push_back(0);
-    _outdeg.push_back(0);
-    return _n++;
-}
+struct Edge {
+    int to;
+    int id;
+    double w;
+};
 
-// Add edge
-void Graph::add_edge(int u, int v, double w) {
-    validate_vertex(u);
-    validate_vertex(v);
-    int id = static_cast<int>(_edges.size());
-    _edges.push_back({id, u, v, w});
-    _adj[u].push_back({v, id, w});
-    _outdeg[u]++;
-    _indeg[v]++;
-    if (_type == GraphType::UNDIRECTED && u != v) {
-        _adj[v].push_back({u, id, w});
-        _outdeg[v]++;
-        _indeg[u]++;
+struct EdgeRecord {
+    int id;
+    int u, v;
+    double w;
+};
+
+class Graph {
+public:
+    explicit Graph(size_t n = 0, GraphType t = GraphType::UNDIRECTED);
+
+    void resize(size_t n);
+    int add_vertex();
+    void add_edge(int u, int v, double w = 1.0);
+
+    size_t vertex_count() const { return _n; }
+    size_t edge_count() const { return _edges.size(); }
+
+    bool directed() const { return _type == GraphType::DIRECTED; }
+    GraphType type() const { return _type; }
+
+    const std::vector<Edge>& neighbors(int u) const;
+
+    int out_degree(int u) const {
+        validate_vertex(u);
+        return _outdeg[u];
     }
-}
 
-// Neighbors
-const std::vector<Edge>& Graph::neighbors(int u) const {
-    validate_vertex(u);
-    return _adj[u];
-}
-
-// Degrees
-int Graph::out_degree(int u) const {
-    validate_vertex(u);
-    return _outdeg[u];
-}
-
-int Graph::in_degree(int u) const {
-    validate_vertex(u);
-    return _indeg[u];
-}
-
-int Graph::degree(int u) const {
-    return directed() ? out_degree(u) : out_degree(u);
-}
-
-// Load from file
-Graph Graph::from_file(const std::string& path) {
-    std::ifstream fin(path);
-    if (!fin)
-        throw std::runtime_error("Failed to open file: " + path);
-    return from_stream(fin);
-}
-
-// Load from stream
-Graph Graph::from_stream(std::istream& in) {
-    char typ;
-    size_t n, m;
-    if (!(in >> typ >> n >> m))
-        throw std::runtime_error("Invalid header line (expected: TYPE N M)");
-
-    Graph g(n, typ == 'D' ? GraphType::DIRECTED : GraphType::UNDIRECTED);
-    for (size_t i = 0; i < m; ++i) {
-        int u, v;
-        double w = 1.0;
-        if (!(in >> u >> v)) throw std::runtime_error("Invalid edge line");
-        if (in.peek() == ' ' || in.peek() == '\t') {
-            if (!(in >> w)) w = 1.0;
-        }
-        g.add_edge(u, v, w);
+    int in_degree(int u) const {
+        validate_vertex(u);
+        return _indeg[u];
     }
-    return g;
-}
 
-// Write to stream
-void Graph::to_stream(std::ostream& out) const {
-    out << (directed() ? 'D' : 'U') << ' ' << _n << ' ' << _edges.size() << '\n';
-    for (const auto& e : _edges) {
-        out << e.u << ' ' << e.v;
-        if (e.w != 1.0)
-            out << ' ' << e.w;
-        out << '\n';
+    int degree(int u) const {
+        return directed() ? out_degree(u) : out_degree(u);
     }
-}
 
-// Validate vertex
-void Graph::validate_vertex(int u) const {
-    if (u < 0 || static_cast<size_t>(u) >= _n)
-        throw std::out_of_range("Invalid vertex: " + std::to_string(u));
-}
+    static Graph from_file(const std::string& path);
+    static Graph from_stream(std::istream& in);
+    void to_stream(std::ostream& out) const;
+
+    friend std::ostream& operator<<(std::ostream& out, const Graph& g) {
+        g.to_stream(out);
+        return out;
+    }
+
+private:
+    size_t _n{};
+    GraphType _type{GraphType::UNDIRECTED};
+    std::vector<std::vector<Edge>> _adj;
+    std::vector<EdgeRecord> _edges;
+    std::vector<int> _indeg, _outdeg;
+
+    void validate_vertex(int u) const {
+        if (u < 0 || static_cast<size_t>(u) >= _n)
+            throw std::out_of_range("Invalid vertex: " + std::to_string(u));
+    }
+};
+
+} // namespace osproj
