@@ -1,61 +1,53 @@
-#include "graph.hpp"
+#include "../include/graph.hpp"
 #include <fstream>
 #include <sstream>
-#include <cctype>
+#include <stdexcept>
 
 using namespace osproj;
 
-Graph::Graph(size_t n, GraphType t) : _n(n), _type(t) {
-    _adj.assign(_n, {});
-    _indeg.assign(_n, 0);
-    _outdeg.assign(_n, 0);
-}
+// Constructor
+Graph::Graph(size_t n, GraphType t) : _n(n), _type(t), _adj(n), _indeg(n, 0), _outdeg(n, 0) {}
 
+// Resize
 void Graph::resize(size_t n) {
     _n = n;
-    _adj.assign(_n, {});
-    _indeg.assign(_n, 0);
-    _outdeg.assign(_n, 0);
+    _adj.resize(n);
+    _indeg.resize(n, 0);
+    _outdeg.resize(n, 0);
     _edges.clear();
 }
 
+// Add vertex
 int Graph::add_vertex() {
     _adj.emplace_back();
     _indeg.push_back(0);
     _outdeg.push_back(0);
-    return static_cast<int>(_n++);
+    return _n++;
 }
 
-void Graph::validate_vertex(int u) const {
-    if (u < 0 || static_cast<size_t>(u) >= _n) {
-        throw std::out_of_range("Vertex index out of range");
-    }
-}
-
+// Add edge
 void Graph::add_edge(int u, int v, double w) {
     validate_vertex(u);
     validate_vertex(v);
-
-    const int eid = static_cast<int>(_edges.size());
-    _edges.push_back({eid, u, v, w});
-
-    // For UNDIRECTED: add both directions; for DIRECTED: only u->v
-    _adj[u].push_back({v, eid, w});
+    int id = static_cast<int>(_edges.size());
+    _edges.push_back({id, u, v, w});
+    _adj[u].push_back({v, id, w});
     _outdeg[u]++;
     _indeg[v]++;
-
-    if (_type == GraphType::UNDIRECTED) {
-        _adj[v].push_back({u, eid, w});
+    if (_type == GraphType::UNDIRECTED && u != v) {
+        _adj[v].push_back({u, id, w});
         _outdeg[v]++;
         _indeg[u]++;
     }
 }
 
+// Neighbors
 const std::vector<Edge>& Graph::neighbors(int u) const {
     validate_vertex(u);
     return _adj[u];
 }
 
+// Degrees
 int Graph::out_degree(int u) const {
     validate_vertex(u);
     return _outdeg[u];
@@ -67,68 +59,50 @@ int Graph::in_degree(int u) const {
 }
 
 int Graph::degree(int u) const {
-    validate_vertex(u);
-    if (_type == GraphType::DIRECTED) return _outdeg[u];
-    return _outdeg[u]; // for undirected outdeg==indeg==degree (we maintained both)
+    return directed() ? out_degree(u) : out_degree(u);
 }
 
+// Load from file
 Graph Graph::from_file(const std::string& path) {
     std::ifstream fin(path);
-    if (!fin) throw std::runtime_error("Failed to open file: " + path);
+    if (!fin)
+        throw std::runtime_error("Failed to open file: " + path);
     return from_stream(fin);
 }
 
-static GraphType parse_type(const std::string& s) {
-    if (s.size() == 1) {
-        char c = std::toupper(static_cast<unsigned char>(s[0]));
-        if (c == 'U') return GraphType::UNDIRECTED;
-        if (c == 'D') return GraphType::DIRECTED;
-    }
-    throw std::runtime_error("Invalid graph type (expected 'U' or 'D')");
-}
-
+// Load from stream
 Graph Graph::from_stream(std::istream& in) {
-    // Format: TYPE N M  then M lines: u v [w]
-    std::string t;
-    size_t N, M;
-    if (!(in >> t >> N >> M)) {
-        throw std::runtime_error("Invalid header. Expected: TYPE N M");
-    }
-    GraphType gt = parse_type(t);
-    Graph g(N, gt);
+    char typ;
+    size_t n, m;
+    if (!(in >> typ >> n >> m))
+        throw std::runtime_error("Invalid header line (expected: TYPE N M)");
 
-    for (size_t i = 0; i < M; ++i) {
-        int u, v; double w = 1.0;
-        if (!(in >> u >> v)) {
-            throw std::runtime_error("Invalid edge line, expected: u v [w]");
-        }
-        if (in.peek() == '
-' || in.peek() == '
-') {
-            // weight omitted
-        } else {
-            // try parse weight (if provided)
-            std::streampos pos = in.tellg();
-            if (!(in >> w)) {
-                // revert if not a number
-                in.clear();
-                in.seekg(pos);
-                w = 1.0;
-            }
+    Graph g(n, typ == 'D' ? GraphType::DIRECTED : GraphType::UNDIRECTED);
+    for (size_t i = 0; i < m; ++i) {
+        int u, v;
+        double w = 1.0;
+        if (!(in >> u >> v)) throw std::runtime_error("Invalid edge line");
+        if (in.peek() == ' ' || in.peek() == '\t') {
+            if (!(in >> w)) w = 1.0;
         }
         g.add_edge(u, v, w);
     }
     return g;
 }
 
+// Write to stream
 void Graph::to_stream(std::ostream& out) const {
-    const char typ = (_type == GraphType::UNDIRECTED ? 'U' : 'D');
-    out << typ << ' ' << _n << ' ' << _edges.size() << '
-';
+    out << (directed() ? 'D' : 'U') << ' ' << _n << ' ' << _edges.size() << '\n';
     for (const auto& e : _edges) {
         out << e.u << ' ' << e.v;
-        if (e.w != 1.0) out << ' ' << e.w;
-        out << '
-';
+        if (e.w != 1.0)
+            out << ' ' << e.w;
+        out << '\n';
     }
+}
+
+// Validate vertex
+void Graph::validate_vertex(int u) const {
+    if (u < 0 || static_cast<size_t>(u) >= _n)
+        throw std::out_of_range("Invalid vertex: " + std::to_string(u));
 }
