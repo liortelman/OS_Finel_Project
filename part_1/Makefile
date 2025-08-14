@@ -1,24 +1,29 @@
-CXX := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
-INCLUDES := -Iinclude
-LDFLAGS :=
+# Makefile for part_1 — Graph structure + Euler algorithm
 
-TARGET := part_1_demo
-SRC := src/graph.cpp main_part1.cpp
-OBJ := $(SRC:.cpp=.o)
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -Iinclude
 
-all: $(TARGET)
+SRC_DIR = src
+BIN_DIR = bin
+OBJ_DIR = obj
 
-$(TARGET): $(OBJ)
-	$(CXX) $(CXXFLAGS) $(OBJ) -o $@ $(LDFLAGS)
+SOURCES = $(SRC_DIR)/graph.cpp $(SRC_DIR)/euler.cpp $(SRC_DIR)/main.cpp
+OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
+EXEC = $(BIN_DIR)/euler
 
-%.o: %.cpp include/graph.hpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+all: $(EXEC)
 
-run: $(TARGET)
-	./$(TARGET)
+$(EXEC): $(OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
-.PHONY: all run clean
+run: all
+	@echo "Usage: make run FILE=path/to/graph.txt"
+	@./$(EXEC) $(FILE)
