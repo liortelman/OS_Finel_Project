@@ -41,6 +41,11 @@ void Graph::add_edge(int u, int v, double w) {
     }
 }
 
+const std::vector<Edge>& Graph::neighbors(int u) const {
+    validate_vertex(u);
+    return _adj[u];
+}
+
 // Load from file
 Graph Graph::from_file(const std::string& path) {
     std::ifstream fin(path);
